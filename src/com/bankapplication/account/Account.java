@@ -1,13 +1,13 @@
 package com.bankapplication.account;
 public class Account{
-    private int id;
+    private int customerId;
     private int balance;
     private long accountNo;
     public void setAccountNo(long accountNo){
         this.accountNo = accountNo;
     }
-    public void setId(int id){
-        this.id = id;
+    public void setCustomerId(int customerId){
+        this.customerId = customerId;
     }
     public void setBalance(int balance){
         this.balance = balance;
@@ -15,8 +15,8 @@ public class Account{
     public long getAccountNo(){
         return this.accountNo;
     }
-    public int getId(){
-        return this.id;
+    public int getCustomerId(){
+        return this.customerId;
     }
     public int getBalance(){
         return this.balance;

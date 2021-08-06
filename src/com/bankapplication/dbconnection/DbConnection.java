@@ -1,124 +1,258 @@
 package com.bankapplication.dbconnection;
 
 import java.sql.Connection;
-import java.sql.Statement;
-import java.sql.ResultSet;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
-import java.util.Map;
-import java.util.HashMap;
+import java.sql.Statement;
+import java.sql.ResultSet;
+import java.util.List;
 
 import com.bankapplication.account.Account;
 import com.bankapplication.customer.Customer;
+import com.bankapplication.mapdata.MapData;
 
 public class DbConnection{
-    String url = "jdbc:mysql://127.0.0.1:3306/app";
-    String login = "root";
-    String pass = "";
-    String table1,table2 ;
-    Connection con = null;
-    PreparedStatement ps1 = null, ps2=null;
-    Map <Integer,Map<Long,Account>> dbHashMap = new HashMap<>();
-    public void getConnection()throws Exception{
-        Class.forName("com.mysql.cj.jdbc.Driver");
-        if(con==null){
-            con= DriverManager.getConnection(url,login,pass);
+    private final String url = "jdbc:mysql://127.0.0.1:3306/app";
+    private final String login = "root";
+    private final String pass = "Vishnu@007";
+    private String table1,table2 ;
+    private Connection con = null;
+    private PreparedStatement ps1 = null, ps2=null;
+    public Connection getConnection()throws Exception{
+        if(con==null) {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            con = DriverManager.getConnection(url, login, pass);
         }
+        return con;
     }
     public void closeConnection() throws Exception{
-        if(con!=null)
+        if(con!=null) {
             con.close();
-        //con=null;
-    }
-    public void getStatement() throws Exception{
-        if(ps1==null){
-            ps1 = con.prepareStatement("insert into "+this.table1+" values(?,?)");
-            //System.out.println("hi");
         }
-        if(ps2==null)
-            ps2 = con.prepareStatement("insert into "+this.table2+" values(?,?,?)");
+    }
+    public PreparedStatement getStatement(String sql,PreparedStatement preparedStatement) throws Exception{
+        if(preparedStatement == null){
+            preparedStatement = getConnection().prepareStatement(sql);
+        }
+        return preparedStatement;
+    }
+    public void closePreparedStatement(PreparedStatement preparedStatement) throws Exception{
+        if(preparedStatement!=null){
+            preparedStatement.close();
+        }
     }
     public void closeStatement() throws Exception{
-        if(ps1!=null&&ps2!=null){
-            ps1.close();
-            ps2.close();
+        closePreparedStatement(ps1);
+        closePreparedStatement(ps2);
+    }
+    public void createTable(String sql) throws Exception{
+        try(Statement statement = getConnection().createStatement()){
+            statement.executeUpdate(sql);
         }
     }
     public void createTables(String table1,String table2) throws Exception{
-        getConnection();
-		/*DatabaseMetaData dbm = con.getMetaData();
-		ResultSet tables = dbm.getTables(null, null,table1, null);
-		if(tables.next())
-			return false;
-		tables = dbm.getTables(null, null,table2, null);
-		if(tables.next())
-			return false;
-		tables.close();*/
         this.table1=table1;
         this.table2=table2;
-        try(Statement statement = con.createStatement()){
-            String sql1 = "create table if not exists "+this.table1+" (id INTEGER not null, name VARCHAR(255) not null,PRIMARY KEY(id))";
-            statement.executeUpdate(sql1);
-            String sql2 = "create table if not exists "+this.table2+" ( accountno BIGINT unsigned not null, balance INTEGER not null, id INTEGER not null,PRIMARY KEY(accountno), FOREIGN KEY (id) REFERENCES "+this.table1+" (id) )";
-            statement.executeUpdate(sql2);
-        }
-        //return true;
+        String sql1 = "create table if not exists "+this.table1+" (customerId INTEGER not null, name VARCHAR(255) not null,PRIMARY KEY(customerId))";
+        String sql2 = "create table if not exists "+this.table2+" ( accountNo BIGINT unsigned not null, balance INTEGER not null, customerId INTEGER not null,PRIMARY KEY(accountNo), FOREIGN KEY (customerId) REFERENCES "+this.table1+" (customerId) )";
+        createTable(sql1);
+        createTable(sql2);
     }
-    public void insertUser(Customer customer) throws Exception{
-        if(customer == null)
-            return ;
-        getConnection();
-        getStatement();
-		/*try(Statement statement = con.createStatement()){
-			String sql="insert into "+table1+" values("+customer.getId()+",'"+customer.getName()+"')";
-			statement.executeUpdate(sql);
-		}*/
-        ps1.setInt(1,customer.getId());
-        ps1.setString(2,customer.getName());
-        ps1.executeUpdate();
+    public void insertUser(List <Customer> customerList) throws Exception{
+        if(customerList == null) {
+            return;
+        }
+        String sql = "insert into "+this.table1+" values(?,?)";
+        ps1 = getStatement(sql,ps1);
+        for(Customer customer : customerList){
+            ps1.setInt(1,customer.getCustomerId());
+            ps1.setString(2,customer.getName());
+            ps1.addBatch();
+        }
+        ps1.executeBatch();
         System.out.println("Customer details inserted successfully");
     }
-    public void insertAccountDetails(Account account) throws Exception{
-        if(account==null)
-            return ;
-        getConnection();
-		/*try(Statement statement = con.createStatement()){
-			String sql = "insert into "+table2+" values("+account.getAccountNo()+","+account.getBalance()+","+account.getId()+")";
-			statement.executeUpdate(sql);
-		}*/
-        ps2.setLong(1,account.getAccountNo());
-        ps2.setInt(2,account.getBalance());
-        ps2.setInt(3,account.getId());
-        ps2.executeUpdate();
+    public void insertAccountDetails(List <Account> accountList) throws Exception{
+        if(accountList==null) {
+            return;
+        }
+        String sql = "insert into "+this.table2+" values(?,?,?)";
+        ps2 = getStatement(sql,ps2);
+        for (Account account : accountList){
+            ps2.setLong(1,account.getAccountNo());
+            ps2.setInt(2,account.getBalance());
+            ps2.setInt(3,account.getCustomerId());
+            ps2.addBatch();
+        }
+        ps2.executeBatch();
         System.out.println("Account details inserted successfully");
     }
-    public Map<Integer,Map<Long,Account>> retrieveUsers()throws Exception{
-        //if(con==null)
-        //System.out.println("bb");
-        getConnection();
-        try(Statement statement = con.createStatement();ResultSet rs = statement.executeQuery("select id,accountno,balance from "+table2)){
+    public void retrieveUsers()throws Exception{
+        try(Statement statement = getConnection().createStatement();ResultSet rs = statement.executeQuery("select customerId,accountNo,balance from "+table2)){
+            MapData.mapData.clearDbHashMap();
             while(rs.next()){
-				/*System.out.print(rs.getInt("id")+" "+rs.getString("name")+" "+rs.getLong("no")+" "+rs.getInt("balance"));
-				System.out.println();*/
                 Account account = new Account();
-                account.setId(rs.getInt("id"));
-                account.setAccountNo(rs.getLong("accountno"));
+                account.setCustomerId(rs.getInt("customerId"));
+                account.setAccountNo(rs.getLong("accountNo"));
                 account.setBalance(rs.getInt("balance"));
-                Map<Long,Account> userMap = dbHashMap.getOrDefault(rs.getInt("id"),new HashMap<Long,Account>());
-                userMap.put(rs.getLong("accountno"),account);
-                dbHashMap.put(rs.getInt("id"),userMap);
+                MapData.mapData.setDbHashMap(account);
             }
-			/*for(int k : hm.keySet()){
-				System.out.println(k);
-				HashMap<Long,Account> temp = hm.get(k);
-				for(Long t : temp.keySet()){
-					System.out.print(t+" "+temp.get(t).getName()+" "+temp.get(t).getBalance()+" ");
-				}
-				System.out.println();
-			}*/
         }
-        closeStatement();
-        closeConnection();
-        return dbHashMap;
     }
 }
+
+//package com.bankapplication.dbconnection;
+//
+//        import java.sql.Connection;
+//        import java.sql.DriverManager;
+//        import java.sql.PreparedStatement;
+//        import java.sql.Statement;
+//        import java.sql.ResultSet;
+//        import java.util.List;
+//
+//
+//        import com.bankapplication.account.Account;
+//        import com.bankapplication.customer.Customer;
+//        import com.bankapplication.mapdata.MapData;
+//
+//public class DbConnection{
+//    private final String url = "jdbc:mysql://127.0.0.1:3306/app";
+//    private final String login = "root";
+//    private final String pass = "Vishnu@007";
+//    private String table1,table2 ;
+//    private Connection con = null;
+//    private PreparedStatement ps1 = null, ps2=null;
+//    //private Map <Integer,Map<Long,Account>> dbHashMap = new HashMap<>();
+//    private static boolean flag = false;
+//    public Connection getConnection()throws Exception{
+//        if(con==null) {
+//            Class.forName("com.mysql.cj.jdbc.Driver");
+//            con = DriverManager.getConnection(url, login, pass);
+//        }
+//        return con;
+//    }
+//    public void closeConnection() throws Exception{
+//        if(con!=null)
+//            con.close();
+//        //con=null;
+//    }
+//    public PreparedStatement getStatement(String sql,PreparedStatement preparedStatement) throws Exception{
+//        /*if(ps1==null)
+//            //System.out.println("hi");
+//            ps1 = con.prepareStatement("insert into "+this.table1+" values(?,?)");
+//        if(ps2==null)
+//            ps2 = con.prepareStatement("insert into "+this.table2+" values(?,?,?)");*/
+//        if(preparedStatement == null){
+//            preparedStatement = getConnection().prepareStatement(sql);
+//        }
+//        return preparedStatement;
+//    }
+//    public void closeStatement() throws Exception{
+//        if(ps1!=null&&ps2!=null){
+//            ps1.close();
+//            ps2.close();
+//        }
+//    }
+//    public void createTables(String table1,String table2) throws Exception{
+//		/*DatabaseMetaData dbm = con.getMetaData();
+//		ResultSet tables = dbm.getTables(null, null,table1, null);
+//		if(tables.next())
+//			return false;
+//		tables = dbm.getTables(null, null,table2, null);
+//		if(tables.next())
+//			return false;
+//		tables.close();*/
+//        this.table1=table1;
+//        this.table2=table2;
+//        try(Statement statement = getConnection().createStatement()){
+//            String sql1 = "create table if not exists "+this.table1+" (id INTEGER not null, name VARCHAR(255) not null,PRIMARY KEY(id))";
+//            statement.executeUpdate(sql1);
+//            String sql2 = "create table if not exists "+this.table2+" ( accountNo BIGINT unsigned not null, balance INTEGER not null, id INTEGER not null,PRIMARY KEY(accountNo), FOREIGN KEY (id) REFERENCES "+this.table1+" (id) )";
+//            statement.executeUpdate(sql2);
+//        }
+//        //return true;
+//    }
+//    public void insertUser(List <Customer> customerList) throws Exception{
+//        if(customerList == null)
+//            return ;
+//		/*try(Statement statement = con.createStatement()){
+//			String sql="insert into "+table1+" values("+customer.getId()+",'"+customer.getName()+"')";
+//			statement.executeUpdate(sql);
+//		}*/
+//        //con.setAutoCommit(false);
+//        String sql = "insert into "+this.table1+" values(?,?)";
+//        ps1 = getStatement(sql,ps1);
+//        for(Customer customer : customerList){
+//            ps1.setInt(1,customer.getId());
+//            ps1.setString(2,customer.getName());
+//            //ps1.executeUpdate();
+//            ps1.addBatch();
+//        }
+//        ps1.executeBatch();
+//        System.out.println("Customer details inserted successfully");
+//        flag = true;
+//    }
+//    public void insertAccountDetails(List <Account> accountList) throws Exception{
+//        if(accountList==null)
+//            return ;
+//		/*try(Statement statement = con.createStatement()){
+//			String sql = "insert into "+table2+" values("+account.getAccountNo()+","+account.getBalance()+","+account.getId()+")";
+//			statement.executeUpdate(sql);
+//		}*/
+//        String sql = "insert into "+this.table2+" values(?,?,?)";
+//        ps2 = getStatement(sql,ps2);
+//        for (Account account : accountList){
+//            ps2.setLong(1,account.getAccountNo());
+//            ps2.setInt(2,account.getBalance());
+//            ps2.setInt(3,account.getId());
+//            //ps2.executeUpdate();
+//            ps2.addBatch();
+//        }
+//        ps2.executeBatch();
+//        System.out.println("Account details inserted successfully");
+//    }
+//    //    public boolean commitValues() throws SQLException {
+////        try{
+////            con.commit();
+////        }
+////        catch (Exception exception){
+////            con.rollback();
+////            return false;
+////        }
+////        return true;
+////    }
+//    public /*Map<Integer,Map<Long,Account>>*/ void  retrieveUsers()throws Exception{
+//        //if(con==null)
+//        //System.out.println("bb");
+//        if(flag){
+//            System.out.println("hi");
+//            getConnection();
+//            try(Statement statement = con.createStatement();ResultSet rs = statement.executeQuery("select id,accountNo,balance from "+table2)){
+//                while(rs.next()){
+//				/*System.out.print(rs.getInt("id")+" "+rs.getString("name")+" "+rs.getLong("no")+" "+rs.getInt("balance"));
+//				System.out.println();*/
+//                    Account account = new Account();
+//                    account.setId(rs.getInt("id"));
+//                    account.setAccountNo(rs.getLong("accountNo"));
+//                    account.setBalance(rs.getInt("balance"));
+//                    MapData.mapData.setDbHashMap(account);
+//                /*Map<Long,Account> userMap = dbHashMap.getOrDefault(rs.getInt("id"),new HashMap<Long,Account>());
+//                userMap.put(rs.getLong("accountNo"),account);
+//                dbHashMap.put(rs.getInt("id"),userMap);*/
+//
+//                }
+//			/*for(int k : hm.keySet()){
+//				System.out.println(k);
+//				HashMap<Long,Account> temp = hm.get(k);
+//				for(Long t : temp.keySet()){
+//					System.out.print(t+" "+temp.get(t).getName()+" "+temp.get(t).getBalance()+" ");
+//				}
+//				System.out.println();
+//			}*/
+//            }
+//            flag=false;
+//        }
+//
+//        //return dbHashMap;
+//    }
+//}
