@@ -1,24 +1,35 @@
 package com.bankapplication.account;
 public class Account{
     private int customerId;
-    private int balance;
+    private double balance;
     private long accountNo;
+	private String branch;
     public void setAccountNo(long accountNo){
         this.accountNo = accountNo;
     }
     public void setCustomerId(int customerId){
         this.customerId = customerId;
     }
-    public void setBalance(int balance){
+    public void setBalance(double balance){
         this.balance = balance;
     }
+	public void setBranch(String branch){
+		this.branch = branch;
+	}
     public long getAccountNo(){
         return this.accountNo;
     }
     public int getCustomerId(){
         return this.customerId;
     }
-    public int getBalance(){
+    public double getBalance(){
         return this.balance;
     }
+	public String getBranch(){
+		return this.branch;
+	}
+	@Override
+	public String toString(){
+		return this.getAccountNo() +" "+this.getCustomerId()+" "+this.getBalance()+" "+this.getBranch();
+	}
 }
