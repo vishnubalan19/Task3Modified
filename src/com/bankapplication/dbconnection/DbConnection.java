@@ -6,12 +6,14 @@ import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.bankapplication.account.Account;
 import com.bankapplication.customer.Customer;
 
-public class DbConnection{
+public class DbConnection implements PersistentLayer{
     private final String url = "jdbc:mysql://127.0.0.1:3306/app";
     private final String login = "root";
     private final String pass = "Vishnu@007";
@@ -19,6 +21,8 @@ public class DbConnection{
     private String table1,table2 ;
     private Connection con = null;
     private PreparedStatement ps1 = null, ps2=null;
+    //Getting the connection
+    @Override
     public Connection getConnection()throws Exception{
         if(con==null) {
             Class.forName("com.mysql.cj.jdbc.Driver");
@@ -26,26 +30,35 @@ public class DbConnection{
         }
         return con;
     }
+    //Closing the connection
+    @Override
     public void closeConnection() throws Exception{
         if(con!=null) {
             con.close();
         }
     }
+    //Getting the statement
+    @Override
     public PreparedStatement getStatement(String sql,PreparedStatement preparedStatement) throws Exception{
         if(preparedStatement == null){
             preparedStatement = getConnection().prepareStatement(sql,preparedStatement.RETURN_GENERATED_KEYS);
         }
         return preparedStatement;
     }
+    //Closing the statement
+    @Override
     public void closePreparedStatement(PreparedStatement preparedStatement) throws Exception{
         if(preparedStatement!=null){
             preparedStatement.close();
         }
     }
+    @Override
     public void closeStatement() throws Exception{
         closePreparedStatement(ps1);
         closePreparedStatement(ps2);
     }
+    //createTables is for getting the table names and table creation.
+    @Override
     public boolean createTables(String table1,String table2){
         try{
             this.table1=table1;
@@ -61,50 +74,83 @@ public class DbConnection{
         }
         return true;
     }
+    @Override
     public void createTable(String sql) throws Exception{
         try(Statement statement = getConnection().createStatement()){
             statement.executeUpdate(sql);
         }
     }
-    public List<Account> insertUsers(List <Customer> customerList,List<Account> accountList){
+    @Override
+    public Map<Integer,List<List>> insertUsers(List <Customer> customerList,List<Account> accountList){
         if(customerList == null) {
             return null;
         }
+        //tempMap is for storing the successful customer and account list and failure customer and account list.
+        Map<Integer,List<List>> tempMap = new HashMap<>();
+        List<List> successList = new ArrayList<>();
+        List<List> failureList = new ArrayList<>();
+        tempMap.put(0,failureList);
+        tempMap.put(1,successList);
 		try{
             for(int i=0; i<customerList.size();i++){
                 Customer customer = customerList.get(i);
-                insertUser(customer);
                 Account account = accountList.get(i);
-                account.setCustomerId(customer.getCustomerId());
-                if(!insertAccount(account)){
-                    return null;
+                int customerId =insertUser(customer);
+                List tempList = new ArrayList();
+                tempList.add(customer);
+                tempList.add(account);
+                if(customerId==-1){
+                    failureList.add(tempList);
+                }
+                else{
+                    customer.setCustomerId(customerId);
+                    account.setCustomerId(customer.getCustomerId());
+                    int accountNo = insertAccount(account);
+                    if(accountNo==-1){
+                        deleteCustomer(customer.getCustomerId());
+                        failureList.add(tempList);
+                    }
+                    else {
+                        account.setAccountNo(accountNo);
+                        successList.add(tempList);
+                    }
                 }
             }
         }
 		catch (Exception e){
 		    System.out.println(e.getMessage());
-		    return null;
         }
-		return accountList;
+		return tempMap;
     }
-	public void insertUser(Customer customer) throws Exception{
+    @Override
+	public int insertUser(Customer customer) throws Exception{
 		if(customer == null){
-			return;
+			return -1;
 		}
-		String sql = "insert into "+this.table1+"(name,mobileNo) values(?,?)";
-		ps1 = getStatement(sql,ps1);
-		ps1.setString(1,customer.getName());
-		ps1.setLong(2,customer.getMobileNo());
-		ps1.executeUpdate();
-		try(ResultSet rs = ps1.getGeneratedKeys()){
-		    if(rs.next()){
-                customer.setCustomerId(rs.getInt(1));
+		try{
+            String sql = "insert into "+this.table1+"(name,mobileNo) values(?,?)";
+            ps1 = getStatement(sql,ps1);
+            ps1.setString(1,customer.getName());
+//            if(customer.getName().equals("vishnu")){
+//                throw new Exception();
+//            }
+            ps1.setLong(2,customer.getMobileNo());
+            ps1.executeUpdate();
+            try(ResultSet rs = ps1.getGeneratedKeys()){
+                if(rs.next()){
+                    return rs.getInt(1);
+                }
             }
         }
+		catch (Exception e){
+            System.out.println(e.getMessage());
+        }
+		return -1;
 	}
-	public boolean insertAccount(Account account){
+    @Override
+	public int insertAccount(Account account){
 		if(account==null){
-			return false;
+			return -1;
 		}
 		try{
             String sql = "insert into "+this.table2+"(balance,customerId,branch) values(?,?,?)";
@@ -112,19 +158,31 @@ public class DbConnection{
             ps2.setDouble(1,account.getBalance());
             ps2.setInt(2,account.getCustomerId());
             ps2.setString(3,account.getBranch());
+//            if(account.getBranch().equals("nagai")){
+//                throw new Exception();
+//            }
             ps2.executeUpdate();
             try(ResultSet rs = ps2.getGeneratedKeys()){
                 if(rs.next()){
-                    account.setAccountNo(rs.getInt(1));
+                    return rs.getInt(1);
                 }
             }
         }
 		catch (Exception e){
 		    System.out.println(e.getMessage());
-		    return false;
         }
-		return true;
+		return -1;
 	}
+	//When the customer details are added but the account details are failed to add, then deletion can be performed using deleteCustomer.
+    @Override
+	public void deleteCustomer(int customerId) throws Exception{
+        String sql = "Delete from "+this.table1+" where customerId ="+customerId;
+        try(Statement statement = getConnection().createStatement()){
+            statement.executeUpdate(sql);
+        }
+    }
+    //getAccountsList is for getting all the accounts in the database.
+    @Override
     public List<Account> getAccountsList()throws Exception{
         List<Account> accountList = new ArrayList<>();
         try(Statement statement = getConnection().createStatement();ResultSet rs = statement.executeQuery("select customerId,accountNo,balance,branch from "+table2)){

@@ -1,4 +1,5 @@
 package com.bankapplication.account;
+//Account is the pojo class
 public class Account{
     private int customerId;
     private double balance;

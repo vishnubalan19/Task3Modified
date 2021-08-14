@@ -1,4 +1,5 @@
 package com.bankapplication.customer;
+//Customer is the pojo class.
 public class Customer{
     private int customerId;
     private String name;

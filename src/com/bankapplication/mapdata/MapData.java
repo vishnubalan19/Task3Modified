@@ -11,8 +11,9 @@ import java.util.List;
 public enum MapData{
     mapData;
     private final Map<Integer, Customer> customerMap = new HashMap<>();
-    private final Map <Integer,Map<Long, Account>> dbHashMap = new HashMap<>();
+    private Map <Integer,Map<Long, Account>> dbHashMap = null;
     private final Map<Integer,List<String>> customerBranchMap = new HashMap<>();
+    //Storing the customer data in Map.
     public void setCustomers(List <Customer> customerList){
         for(Customer customer : customerList){
             setCustomerMap(customer);
@@ -24,7 +25,11 @@ public enum MapData{
     public Map<Integer,Customer> getCustomerMap(){
         return customerMap;
     }
+    //Storing the customer and their branch relation in Map.
     public void setCustomerBranches( List<Account> accountList){
+        if(accountList==null){
+            return;
+        }
         for(Account account : accountList){
             setCustomerBranchMap(account.getCustomerId(),account.getBranch());
         }
@@ -40,7 +45,17 @@ public enum MapData{
     public void clearDbHashMap(){
         dbHashMap.clear();
     }
+    //setDbHashValues is for setting the dbHashMap.
 	public void setDbHashValues(List<Account> accountList){
+        if(accountList==null){
+            return;
+        }
+        if(accountList.size()==0){
+            return;
+        }
+        if(getDbHashMap()==null){
+            this.dbHashMap = new HashMap<>();
+        }
         for(Account account : accountList){
             setDbHashMap(account);
         }

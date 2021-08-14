@@ -7,139 +7,263 @@ import java.util.List;
 import com.bankapplication.logiclayer.LogicLayer;
 import com.bankapplication.account.Account;
 import com.bankapplication.customer.Customer;
+import com.bankapplication.ruleengine.RuleEngine;
 
 public class DbApplication{
-	public void getUserChoice()throws Exception{
+	public void enterUserChoice()throws Exception{
         Map <Integer,Customer> customerMap;
         Map <Integer,Map<Long,Account>> dbHashMap ;
 		LogicLayer logicLayer = new LogicLayer();
-		List<Customer> customerList = new ArrayList<>();
-		List<Account> accountList = new ArrayList<>();
 		Scanner scanner = new Scanner(System.in);
 		boolean choiceFlag = true;
+		//choiceFlag is for loop to happen until user wants to exit.
 		while(choiceFlag){
 			System.out.println("Database Application");
 			System.out.println("1. Create User details table and Account table ");
 			System.out.println("2. Insert Details");
 			System.out.println("3. Get User and Account information");
 			System.out.println("4. Exit");
-			int choice = scanner.nextInt();
-			switch(choice){
-				case 1:
-					String table1,table2;
-					System.out.println("Enter the table name which contains user id and user name");
-					table1=scanner.next();
-					System.out.println("Enter the table name which contains account no, account balance and id");
-					table2=scanner.next();
-					boolean flag = logicLayer.createTables(table1,table2);
-					if(flag){
-						System.out.println("Tables are created successfully");
-					}
-					else{
-						System.out.println("Enter appropriate table names");
-					}
-					break;
-				case 2:
-					boolean insertFlag = true;
-					while(insertFlag) {
-						System.out.println("1. New Users");
-						System.out.println("2. Existing users");
-						System.out.println("3. Exit");
-						System.out.println("Enter your choice");
-						int insertChoice = scanner.nextInt();
-						switch (insertChoice) {
-							case 1:
-								System.out.println("Enter the no. of users");
-								int noOfUsers = scanner.nextInt();
-								while (noOfUsers-- > 0) {
-									scanner.nextLine();
-									System.out.println("Enter the user name");
-									String name = scanner.nextLine();
-									Customer customer = new Customer();
-									customer.setName(name);
-									System.out.println("Enter the User MobileNo");
-									long mobileNo = scanner.nextInt();
-									customer.setMobileNo(mobileNo);
-									customerList.add(customer);
-									System.out.println("Enter the branch");
-									String branch = scanner.next();
-									System.out.println("Enter the Initial Deposit");
-									double balance = scanner.nextInt();
-									Account account = new Account();
-									account.setBalance(balance);
-									account.setBranch(branch);
-									accountList.add(account);
-								}
-								List<Account> tempAccountList = logicLayer.insertUsers(customerList, accountList);
-								if(tempAccountList !=null){
-									System.out.println("Customer details inserted successfully.");
+			String tempChoice = scanner.nextLine();
+			int choice ;
+			//Below statement will execute if choice is irrelevant data type.
+			if(!RuleEngine.validateNumber(tempChoice)){
+				System.out.println("Enter appropriate values");
+			}
+			//If choice input is fine for processing, then the else block will execute.
+			else{
+				choice = Integer.parseInt(tempChoice);
+				switch(choice){
+					case 1:
+						String table1,table2;
+						System.out.println("Enter the table name which contains user id and user name");
+						table1=scanner.nextLine();
+						//Validating both the table names. If it fails, then it will break the switch.
+						if(!RuleEngine.validateName(table1)){
+							System.out.println("Enter appropriate table name");
+							break;
+						}
+						System.out.println("Enter the table name which contains account no, account balance and id");
+						table2=scanner.nextLine();
+						if(!RuleEngine.validateName(table2)){
+							System.out.println("Enter appropriate table name");
+							break;
+						}
+						//flag is for acknowledging the user, whether table created successfully or not.
+						boolean flag = logicLayer.createTables(table1,table2);
+						if(flag){
+							System.out.println("Tables are created successfully");
+						}
+						else{
+							System.out.println("Enter appropriate table names");
+						}
+						break;
+					case 2:
+						boolean insertFlag = true;
+						//insertFlag is for looping the below blocks of statement, until the user wants to exit.
+						while(insertFlag) {
+							System.out.println("1. New Users");
+							System.out.println("2. Existing users");
+							System.out.println("3. Exit");
+							System.out.println("Enter your choice");
+							String tempInsertChoice = scanner.nextLine();
+							//Below statement is for validating the user input.
+							if(!RuleEngine.validateNumber(tempInsertChoice)){
+								System.out.println("Enter appropriate values");
+								break;
+							}
+							int insertChoice = Integer.parseInt(tempInsertChoice);
+							switch (insertChoice) {
+								case 1:
+									System.out.println("Enter the no. of users");
+									String tempNoOfUsers = scanner.nextLine();
+									//validation
+									if(!RuleEngine.validateNumber(tempNoOfUsers)){
+										System.out.println("Enter appropriate values");
+										break;
+									}
+									int noOfUsers = Integer.parseInt(tempNoOfUsers);
+									List<Customer> customerList = new ArrayList<>();
+									List<Account> accountList = new ArrayList<>();
+									//innerFlag is for to exit the switch from the below loop.(break the loop if condition fails and change the
+									// flag to terminate the switch)
+									boolean innerFlag=true;
+									while (noOfUsers-- > 0) {
+										//scanner.nextLine();
+										//validation
+										System.out.println("Enter the user name");
+										String name = scanner.nextLine();
+										if(!RuleEngine.validateName(name)){
+											System.out.println("Enter appropriate Name");
+											innerFlag = false;
+											break;
+										}
+										System.out.println("Enter the User MobileNo");
+										String mobileNumber = scanner.nextLine();
+										if(!RuleEngine.validateMobileNo(mobileNumber)){
+											System.out.println("Enter appropriate MobileNo");
+											innerFlag = false;
+											break;
+										}
+										long mobileNo = Long.parseLong(mobileNumber);
+										System.out.println(mobileNo);
+										//Insertion of customer details into its pojo class
+										Customer customer = new Customer();
+										customer.setName(name);
+										customer.setMobileNo(mobileNo);
+										customerList.add(customer);
+
+										System.out.println("Enter the branch");
+										String branch = scanner.nextLine();
+										//validation
+										if(!RuleEngine.validateName(branch)){
+											System.out.println("Enter the appropriate branch name");
+											innerFlag = false;
+											break;
+										}
+										System.out.println("Enter the Initial Deposit");
+										String tempBalance = scanner.nextLine();
+										if(!RuleEngine.validateFloatNumber(tempBalance)){
+											System.out.println("Enter appropriate balance");
+											innerFlag = false;
+											break;
+										}
+										double balance = Double.parseDouble(tempBalance);
+										if(!RuleEngine.validateInitialDeposit(balance)){
+											System.out.println("Enter the appropriate Initial deposit (Minimum balance should be 500)");
+											innerFlag = false;
+											break;
+										}
+										//Insertion of account details into account object.
+										Account account = new Account();
+										account.setBalance(balance);
+										account.setBranch(branch);
+										accountList.add(account);
+									}
+									if(!innerFlag){
+										break;
+									}
+									//If all the input are in the appropriate form, then below statements will execute.
+									//tempMap contains two list for success and failure records.
+									Map<Integer,List<List>> tempMap = logicLayer.insertUsers(customerList, accountList);
+									System.out.println("Total records sent - "+accountList.size());
+									//1 in the below statement is for successful records.
+									List<Account> tempAccountList = logicLayer.getAccountList(tempMap,1);
+									System.out.println("Successful insertion - "+tempAccountList.size());
 									System.out.println("AccountNo  CustomerId  InitialDeposit  Branch");
 									for(Account account : tempAccountList){
 										System.out.println(account);
 									}
-								}
-								else{
-									System.out.println("Enter appropriate details");
-								}
-								customerList.clear();
-								accountList.clear();
-								break;
-							case 2:
-								customerMap = logicLayer.getCustomerMap();
-								System.out.println("Enter the customer id");
-								int customerId = scanner.nextInt();
-								Customer customer = customerMap.get(customerId);
-								if(customer!=null){
+									//0 in the above statement is for failure records.
+									tempAccountList = logicLayer.getAccountList(tempMap,0);
+									System.out.println("Failure insertion - "+tempAccountList.size());
+									if(tempAccountList.size()==0){
+										break;
+									}
+									System.out.println("AccountNo  CustomerId  InitialDeposit  Branch");
+									for(Account account : tempAccountList){
+										System.out.println(account);
+									}
+									break;
+								case 2:
+									customerMap = logicLayer.getCustomerMap();
+									System.out.println("Enter the customer id");
+									String tempCustomerId = scanner.nextLine();
+									//validation
+									if(!RuleEngine.validateNumber(tempCustomerId)){
+										System.out.println("Enter appropriate customer id");
+										break;
+									}
+									int customerId = Integer.parseInt(tempCustomerId);
+									Customer customer = customerMap.get(customerId);
+									if(customer==null){
+										System.out.println("Invalid user id");
+										break;
+									}
 									System.out.println("Enter the MobileNo");
-									int MobileNo = scanner.nextInt();
+									String mobileNumber = scanner.nextLine();
+									if(!RuleEngine.validateMobileNo(mobileNumber)){
+										System.out.println("Enter appropriate Mobile number");
+										break;
+									}
+									long mobileNo = Long.parseLong(mobileNumber);
 									System.out.println("Enter the branch");
-									String branch = scanner.next();
+									String branch = scanner.nextLine();
+									if(!RuleEngine.validateName(branch)){
+										System.out.println("Enter appropriate branch");
+										break;
+									}
 									Map<Integer,List<String>>customerBranchMap = logicLayer.getCustomerBranchMap();
 									List <String>branchList = customerBranchMap.get(customerId);
-									if (branchList!=null && !branchList.contains(branch) && customer.getMobileNo() == MobileNo) {
-										Account account = new Account();
-										account.setCustomerId(customer.getCustomerId());
-										System.out.println("Enter the initial deposit");
-										double balance = scanner.nextDouble();
-										account.setBalance(balance);
-										account.setBranch(branch);
-										flag = logicLayer.insertAccount(account);
-										if(flag){
-											System.out.println("Account details are inserted successfully");
-										}
+									if (branchList==null || branchList.contains(branch) || customer.getMobileNo() != mobileNo) {
+										System.out.println("Enter valid MobileNo or Account may be exist in the branch");
+										break;
 									}
-									else{
-										System.out.println("Enter valid mobileNo or account may exist in the branch");
+									System.out.println("Enter the initial deposit");
+									String tempBalance = scanner.nextLine();
+									if(!RuleEngine.validateFloatNumber(tempBalance)){
+										System.out.println("Enter appropriate balance");
+										break;
 									}
-								}
-								else {
-									System.out.println("Invalid customer id");
-								}
-								break;
-							case 3:
-								insertFlag = false;
-								break;
-							default:
-								System.out.println("Enter appropriate choice");
-								break;
+									double balance = Double.parseDouble(tempBalance);
+									if(!RuleEngine.validateInitialDeposit(balance)){
+										System.out.println("Enter the appropriate Initial deposit (Minimum balance should be 500)");
+										break;
+									}
+									//Setting the account details into account object.
+									Account account = new Account();
+									account.setCustomerId(customer.getCustomerId());
+									account.setBalance(balance);
+									account.setBranch(branch);
+									int accountNo = logicLayer.insertAccount(account);
+									if(accountNo==-1){
+										System.out.println("Enter appropriate account details");
+										break;
+									}
+									System.out.println("AccountNo  CustomerId  InitialDeposit  Branch");
+									System.out.println(account);
+									break;
+								case 3:
+									insertFlag = false;
+									break;
+								default:
+									System.out.println("Enter appropriate choice");
+									break;
+							}
 						}
-					}
-					break;
-				case 3:
-					logicLayer.retrieveUsers();
-					boolean retrieveFlag=true;
-					while(retrieveFlag){
-						System.out.println("1. Find users");
-						System.out.println("2. Exit");
-						System.out.println("Enter your choice");
-						int retrieveChoice = scanner.nextInt();
-						switch(retrieveChoice){
-							case 1 :
-								System.out.println("Enter id");
-								int id = scanner.nextInt();
-								dbHashMap=logicLayer.getDbHashMap();
-								customerMap=logicLayer.getCustomerMap();
-								if(dbHashMap.containsKey(id)){
+						break;
+					case 3:
+						//retrieveFlag is for looping below statement until the user wants to exit.
+						boolean retrieveFlag=true;
+						while(retrieveFlag){
+							System.out.println("1. Find users");
+							System.out.println("2. Exit");
+							System.out.println("Enter your choice");
+							String tempRetrieveChoice = scanner.nextLine();
+							//validation
+							if(!RuleEngine.validateNumber(tempRetrieveChoice)){
+								System.out.println("Enter appropriate values");
+								break;
+							}
+							int retrieveChoice = Integer.parseInt(tempRetrieveChoice);
+							switch(retrieveChoice){
+								case 1 :
+									if(logicLayer.getDbHashMap()==null){
+										logicLayer.retrieveUsers();
+									}
+									System.out.println("Enter id");
+									String tempId = scanner.nextLine();
+									if(!RuleEngine.validateNumber(tempId)){
+										System.out.println("Enter appropriate values");
+										break;
+									}
+									//Receiving the dbHashMap from the logicLayer.
+									int id = Integer.parseInt(tempId);
+									dbHashMap=logicLayer.getDbHashMap();
+									customerMap=logicLayer.getCustomerMap();
+									if(dbHashMap==null || !dbHashMap.containsKey(id) || customerMap==null){
+										System.out.println("Enter valid user id");
+										break;
+									}
 									Map<Long,Account> tempMap = dbHashMap.get(id);
 									for(Long t : tempMap.keySet()){
 										Account account = tempMap.get(t);
@@ -150,34 +274,31 @@ public class DbApplication{
 										System.out.println(account);
 										System.out.println();
 									}
-								}
-								else{
-									System.out.println("Enter valid user id");
-								}
-								break;
-							case 2 :
-								retrieveFlag=false;
-								break;
-							default :
-								System.out.println("Enter valid choice");
-								break;
+									break;
+								case 2 :
+									retrieveFlag=false;
+									break;
+								default :
+									System.out.println("Enter valid choice");
+									break;
+							}
 						}
-					}
-					break;
-				case 4:
-					logicLayer.closeStatement();
-					logicLayer.closeConnection();
-					choiceFlag=false;
-					break;
-				default:
-					System.out.println("Enter appropriate choice");
-					break;
+						break;
+					case 4:
+						//cleanUp() will close all the statements.
+						logicLayer.cleanUp();
+						choiceFlag=false;
+						break;
+					default:
+						System.out.println("Enter appropriate choice");
+						break;
+				}
 			}
 		}
     }
         
     public static void main(String [] args) throws Exception{
-        new DbApplication().getUserChoice();
+        new DbApplication().enterUserChoice();
     }
 }
 
