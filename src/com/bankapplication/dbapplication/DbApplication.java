@@ -10,11 +10,40 @@ import com.bankapplication.customer.Customer;
 import com.bankapplication.ruleengine.RuleEngine;
 
 public class DbApplication{
+	Scanner scanner = new Scanner(System.in);
+	LogicLayer logicLayer = new LogicLayer();
+	public Account getCustomerDetails(){
+		System.out.println("Enter id");
+		String tempId = scanner.nextLine();
+		if(!RuleEngine.validateNumber(tempId)){
+			System.out.println("Enter appropriate values");
+			return null;
+		}
+		//Receiving the dbHashMap from the logicLayer.
+		int id = Integer.parseInt(tempId);
+		Map<Integer,Map<Long,Account>>dbHashMap=logicLayer.getDbHashMap();
+		Map<Integer,Customer> customerMap=logicLayer.getCustomerMap();
+		if(dbHashMap==null || !dbHashMap.containsKey(id) || customerMap==null){
+			System.out.println("Enter valid user id");
+			return null;
+		}
+		Map<Long,Account> tempMap = dbHashMap.get(id);
+		System.out.println("Enter the Account No");
+		String tempAccountNo = scanner.nextLine();
+		if(!RuleEngine.validateNumber(tempAccountNo)){
+			System.out.println("Enter appropriate values");
+			return null;
+		}
+		long accountNo = Integer.parseInt(tempAccountNo);
+		if(!tempMap.containsKey(accountNo)){
+			System.out.println("Account is not available or Enter correct Account No.");
+			return null;
+		}
+		return tempMap.get(accountNo);
+	}
 	public void enterUserChoice()throws Exception{
         Map <Integer,Customer> customerMap;
         Map <Integer,Map<Long,Account>> dbHashMap ;
-		LogicLayer logicLayer = new LogicLayer();
-		Scanner scanner = new Scanner(System.in);
 		boolean choiceFlag = true;
 		//choiceFlag is for loop to happen until user wants to exit.
 		while(choiceFlag){
@@ -22,7 +51,11 @@ public class DbApplication{
 			System.out.println("1. Create User details table and Account table ");
 			System.out.println("2. Insert Details");
 			System.out.println("3. Get User and Account information");
-			System.out.println("4. Exit");
+			System.out.println("4. Deposit Amount");
+			System.out.println("5. Withdraw Amount");
+			System.out.println("6. Delete Account");
+			System.out.println("7. Reactivate Account");
+			System.out.println("8. Exit");
 			String tempChoice = scanner.nextLine();
 			int choice ;
 			//Below statement will execute if choice is irrelevant data type.
@@ -49,13 +82,14 @@ public class DbApplication{
 							break;
 						}
 						//flag is for acknowledging the user, whether table created successfully or not.
-						boolean flag = logicLayer.createTables(table1,table2);
-						if(flag){
-							System.out.println("Tables are created successfully");
+						try{
+							logicLayer.createTables(table1,table2);
 						}
-						else{
-							System.out.println("Enter appropriate table names");
+						catch(Exception exception){
+							System.out.println(exception.getMessage());
+							break;
 						}
+						System.out.println("Enter appropriate table names");
 						break;
 					case 2:
 						boolean insertFlag = true;
@@ -122,7 +156,7 @@ public class DbApplication{
 										}
 										System.out.println("Enter the Initial Deposit");
 										String tempBalance = scanner.nextLine();
-										if(!RuleEngine.validateFloatNumber(tempBalance)){
+										if(!RuleEngine.validateDoubleNumber(tempBalance)){
 											System.out.println("Enter appropriate balance");
 											innerFlag = false;
 											break;
@@ -200,7 +234,7 @@ public class DbApplication{
 									}
 									System.out.println("Enter the initial deposit");
 									String tempBalance = scanner.nextLine();
-									if(!RuleEngine.validateFloatNumber(tempBalance)){
+									if(!RuleEngine.validateDoubleNumber(tempBalance)){
 										System.out.println("Enter appropriate balance");
 										break;
 									}
@@ -248,7 +282,8 @@ public class DbApplication{
 							switch(retrieveChoice){
 								case 1 :
 									if(logicLayer.getDbHashMap()==null){
-										logicLayer.retrieveUsers();
+										System.out.println("no retrieve");
+										//logicLayer.retrieveUsers();
 									}
 									System.out.println("Enter id");
 									String tempId = scanner.nextLine();
@@ -285,6 +320,75 @@ public class DbApplication{
 						}
 						break;
 					case 4:
+						Account account = getCustomerDetails();
+						if(account==null){
+							break;
+						}
+						System.out.println("Enter the amount that you want to deposit");
+						String varDepositAmount = scanner.nextLine();
+						if(!RuleEngine.validateDoubleNumber(varDepositAmount)){
+							System.out.println("Enter appropriate amount");
+							break;
+						}
+						double depositAmount = Double.parseDouble(varDepositAmount);
+						try{
+							logicLayer.depositAmount(account.getCustomerId(),depositAmount,account.getAccountNo(),account.getBalance());
+						}
+						catch (Exception exception){
+							System.out.println(exception.getMessage());
+							break;
+						}
+						System.out.println("Amount deposited successfully");
+						break;
+					case 5:
+						account = getCustomerDetails();
+						if(account==null){
+							break;
+						}
+						System.out.println("Enter the amount that you want to withdraw");
+						String varWithdrawAmount = scanner.nextLine();
+						if(!RuleEngine.validateDoubleNumber(varWithdrawAmount)){
+							System.out.println("Enter appropriate amount");
+							break;
+						}
+						double withdrawAmount = Double.parseDouble(varWithdrawAmount);
+						if(!RuleEngine.validateInitialDeposit(account.getBalance()-withdrawAmount)){
+							System.out.println("Account should minimum have 500 rupees");
+							break;
+						}
+						try {
+							logicLayer.withdrawAmount(account.getCustomerId(),withdrawAmount,account.getAccountNo(),account.getBalance());
+						}catch (Exception exception){
+							System.out.println(exception.getMessage());
+							break;
+						}
+						System.out.println("Amount withdrawal is successful");
+						break;
+					case 6:
+						account = getCustomerDetails();
+						if(account==null){
+							break;
+						}
+						try{
+							logicLayer.removeAccount(account.getCustomerId(), account.getAccountNo());
+						}catch (Exception exception){
+							System.out.println(exception.getMessage());
+							break;
+						}
+						System.out.println("Account deleted successfully");
+						break;
+					case 7:
+						Map<Integer,Customer> tempCustomerMap = logicLayer.getDeactivatedCustomerMap();
+						System.out.println("Enter User id");
+						String tempId = scanner.nextLine();
+						if(!RuleEngine.validateNumber(tempId)){
+							System.out.println("Enter appropriate values");
+							break;
+						}
+						int id = Integer.parseInt(tempId);
+
+						break;
+					case 8:
 						//cleanUp() will close all the statements.
 						logicLayer.cleanUp();
 						choiceFlag=false;

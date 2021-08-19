@@ -1,10 +1,6 @@
 package com.bankapplication.dbconnection;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.Statement;
-import java.sql.ResultSet;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,6 +8,7 @@ import java.util.Map;
 
 import com.bankapplication.account.Account;
 import com.bankapplication.customer.Customer;
+import com.bankapplication.exception.CustomException;
 
 public class DbConnection implements PersistentLayer{
     private final String url = "jdbc:mysql://127.0.0.1:3306/app";
@@ -23,7 +20,7 @@ public class DbConnection implements PersistentLayer{
     private PreparedStatement ps1 = null, ps2=null;
     //Getting the connection
     @Override
-    public Connection getConnection()throws Exception{
+    public Connection getConnection()throws ClassNotFoundException, SQLException{
         if(con==null) {
             Class.forName("com.mysql.cj.jdbc.Driver");
             con = DriverManager.getConnection(url, login, pass);
@@ -32,14 +29,14 @@ public class DbConnection implements PersistentLayer{
     }
     //Closing the connection
     @Override
-    public void closeConnection() throws Exception{
+    public void closeConnection() throws SQLException{
         if(con!=null) {
             con.close();
         }
     }
     //Getting the statement
     @Override
-    public PreparedStatement getStatement(String sql,PreparedStatement preparedStatement) throws Exception{
+    public PreparedStatement getStatement(String sql,PreparedStatement preparedStatement) throws SQLException, ClassNotFoundException{
         if(preparedStatement == null){
             preparedStatement = getConnection().prepareStatement(sql,preparedStatement.RETURN_GENERATED_KEYS);
         }
@@ -47,35 +44,33 @@ public class DbConnection implements PersistentLayer{
     }
     //Closing the statement
     @Override
-    public void closePreparedStatement(PreparedStatement preparedStatement) throws Exception{
+    public void closePreparedStatement(PreparedStatement preparedStatement) throws SQLException{
         if(preparedStatement!=null){
             preparedStatement.close();
         }
     }
     @Override
-    public void closeStatement() throws Exception{
+    public void closeStatement() throws SQLException{
         closePreparedStatement(ps1);
         closePreparedStatement(ps2);
     }
     //createTables is for getting the table names and table creation.
     @Override
-    public boolean createTables(String table1,String table2){
+    public void createTables(String table1, String table2) throws CustomException{
         try{
             this.table1=table1;
             this.table2=table2;
-            String sql1 = createTable+table1+" (customerId INTEGER not null AUTO_INCREMENT, name VARCHAR(255) not null,mobileNo BIGINT unsigned not null,PRIMARY KEY(customerId))";
-            String sql2 = createTable+table2+" ( accountNo BIGINT unsigned not null AUTO_INCREMENT, balance DOUBLE not null,branch VARCHAR(255) not null, customerId INTEGER not null,PRIMARY KEY(accountNo), FOREIGN KEY (customerId) REFERENCES "+this.table1+" (customerId) )";
+            String sql1 = createTable+table1+" (customerId INTEGER not null AUTO_INCREMENT, name VARCHAR(255) not null,mobileNo BIGINT unsigned not null,status INTEGER not null,PRIMARY KEY(customerId))";
+            String sql2 = createTable+table2+" ( accountNo BIGINT unsigned not null AUTO_INCREMENT, balance DOUBLE not null,branch VARCHAR(255) not null, customerId INTEGER not null, status INTEGER not null ,PRIMARY KEY(accountNo), FOREIGN KEY (customerId) REFERENCES "+this.table1+" (customerId) )";
             createTable(sql1);
             createTable(sql2);
         }
-        catch (Exception e){
-            System.out.println(e.getMessage());
-            return false;
+        catch (Exception exception){
+            throw new CustomException(exception.getMessage());
         }
-        return true;
     }
     @Override
-    public void createTable(String sql) throws Exception{
+    public void createTable(String sql) throws Exception {
         try(Statement statement = getConnection().createStatement()){
             statement.executeUpdate(sql);
         }
@@ -128,13 +123,14 @@ public class DbConnection implements PersistentLayer{
 			return -1;
 		}
 		try{
-            String sql = "insert into "+this.table1+"(name,mobileNo) values(?,?)";
+            String sql = "insert into "+this.table1+"(name,mobileNo,status) values(?,?,?)";
             ps1 = getStatement(sql,ps1);
             ps1.setString(1,customer.getName());
 //            if(customer.getName().equals("vishnu")){
 //                throw new Exception();
 //            }
             ps1.setLong(2,customer.getMobileNo());
+            ps1.setInt(3,1);
             ps1.executeUpdate();
             try(ResultSet rs = ps1.getGeneratedKeys()){
                 if(rs.next()){
@@ -153,7 +149,7 @@ public class DbConnection implements PersistentLayer{
 			return -1;
 		}
 		try{
-            String sql = "insert into "+this.table2+"(balance,customerId,branch) values(?,?,?)";
+            String sql = "insert into "+this.table2+"(balance,customerId,branch,status) values(?,?,?,?)";
             ps2 = getStatement(sql,ps2);
             ps2.setDouble(1,account.getBalance());
             ps2.setInt(2,account.getCustomerId());
@@ -161,6 +157,7 @@ public class DbConnection implements PersistentLayer{
 //            if(account.getBranch().equals("nagai")){
 //                throw new Exception();
 //            }
+            ps2.setInt(4,1);
             ps2.executeUpdate();
             try(ResultSet rs = ps2.getGeneratedKeys()){
                 if(rs.next()){
@@ -185,7 +182,8 @@ public class DbConnection implements PersistentLayer{
     @Override
     public List<Account> getAccountsList()throws Exception{
         List<Account> accountList = new ArrayList<>();
-        try(Statement statement = getConnection().createStatement();ResultSet rs = statement.executeQuery("select customerId,accountNo,balance,branch from "+table2)){
+        String sql = "select customerId,accountNo,balance,branch from "+table2+" where status = 1";
+        try(Statement statement = getConnection().createStatement();ResultSet rs = statement.executeQuery(sql)){
             while(rs.next()){
                 Account account = new Account();
                 account.setCustomerId(rs.getInt("customerId"));
@@ -197,8 +195,273 @@ public class DbConnection implements PersistentLayer{
         }
         return accountList;
     }
+
+    @Override
+    public void removeAccount(long accountNo) throws CustomException{
+        String sql = "Update "+this.table2+" set status = 0 where accountNo = "+accountNo;
+        updateDb(sql);
+    }
+    @Override
+    public void updateDb(String sql) throws CustomException {
+        try (Statement statement = getConnection().createStatement()) {
+            statement.executeUpdate(sql);
+        } catch (Exception exception) {
+            throw new CustomException(exception.getMessage());
+        }
+    }
+
+    @Override
+    public void removeCustomer(int customerId) throws CustomException{
+        String sql = "Update "+this.table1+" set status = 0 where customerId = "+customerId;
+        updateDb(sql);
+    }
+    @Override
+    public void updateAmount(double amount, long accountNo) throws CustomException{
+        String sql = "Update "+this.table2+" set balance = "+amount+" where accountNo = "+accountNo+" and status = 1";
+        updateDb(sql);
+    }
+    @Override
+    public void rollbackAccount(long accountNo) throws CustomException{
+        String sql = "Update "+this.table2+" set status = 1 where accountNo = "+accountNo;
+        updateDb(sql);
+    }
 }
 
+//package com.bankapplication.dbconnection;
+//
+//        import java.sql.Connection;
+//        import java.sql.DriverManager;
+//        import java.sql.PreparedStatement;
+//        import java.sql.Statement;
+//        import java.sql.ResultSet;
+//        import java.util.ArrayList;
+//        import java.util.HashMap;
+//        import java.util.List;
+//        import java.util.Map;
+//
+//        import com.bankapplication.account.Account;
+//        import com.bankapplication.customer.Customer;
+//
+//public class DbConnection implements PersistentLayer{
+//    private final String url = "jdbc:mysql://127.0.0.1:3306/app";
+//    private final String login = "root";
+//    private final String pass = "Vishnu@007";
+//    private final String createTable = "create table if not exists ";
+//    private String table1,table2 ;
+//    private Connection con = null;
+//    private PreparedStatement ps1 = null, ps2=null;
+//    //Getting the connection
+//    @Override
+//    public Connection getConnection()throws Exception{
+//        if(con==null) {
+//            Class.forName("com.mysql.cj.jdbc.Driver");
+//            con = DriverManager.getConnection(url, login, pass);
+//        }
+//        return con;
+//    }
+//    //Closing the connection
+//    @Override
+//    public void closeConnection() throws Exception{
+//        if(con!=null) {
+//            con.close();
+//        }
+//    }
+//    //Getting the statement
+//    @Override
+//    public PreparedStatement getStatement(String sql,PreparedStatement preparedStatement) throws Exception{
+//        if(preparedStatement == null){
+//            preparedStatement = getConnection().prepareStatement(sql,preparedStatement.RETURN_GENERATED_KEYS);
+//        }
+//        return preparedStatement;
+//    }
+//    //Closing the statement
+//    @Override
+//    public void closePreparedStatement(PreparedStatement preparedStatement) throws Exception{
+//        if(preparedStatement!=null){
+//            preparedStatement.close();
+//        }
+//    }
+//    @Override
+//    public void closeStatement() throws Exception{
+//        closePreparedStatement(ps1);
+//        closePreparedStatement(ps2);
+//    }
+//    //createTables is for getting the table names and table creation.
+//    @Override
+//    public boolean createTables(String table1,String table2){
+//        try{
+//            this.table1=table1;
+//            this.table2=table2;
+//            String sql1 = createTable+table1+" (customerId INTEGER not null AUTO_INCREMENT, name VARCHAR(255) not null,mobileNo BIGINT unsigned not null,status INTEGER not null,PRIMARY KEY(customerId))";
+//            String sql2 = createTable+table2+" ( accountNo BIGINT unsigned not null AUTO_INCREMENT, balance DOUBLE not null,branch VARCHAR(255) not null, customerId INTEGER not null, status INTEGER not null ,PRIMARY KEY(accountNo), FOREIGN KEY (customerId) REFERENCES "+this.table1+" (customerId) )";
+//            createTable(sql1);
+//            createTable(sql2);
+//        }
+//        catch (Exception e){
+//            System.out.println(e.getMessage());
+//            return false;
+//        }
+//        return true;
+//    }
+//    @Override
+//    public void createTable(String sql) throws Exception{
+//        try(Statement statement = getConnection().createStatement()){
+//            statement.executeUpdate(sql);
+//        }
+//    }
+//    @Override
+//    public Map<Integer,List<List>> insertUsers(List <Customer> customerList,List<Account> accountList){
+//        if(customerList == null) {
+//            return null;
+//        }
+//        //tempMap is for storing the successful customer and account list and failure customer and account list.
+//        Map<Integer,List<List>> tempMap = new HashMap<>();
+//        List<List> successList = new ArrayList<>();
+//        List<List> failureList = new ArrayList<>();
+//        tempMap.put(0,failureList);
+//        tempMap.put(1,successList);
+//        try{
+//            for(int i=0; i<customerList.size();i++){
+//                Customer customer = customerList.get(i);
+//                Account account = accountList.get(i);
+//                int customerId =insertUser(customer);
+//                List tempList = new ArrayList();
+//                tempList.add(customer);
+//                tempList.add(account);
+//                if(customerId==-1){
+//                    failureList.add(tempList);
+//                }
+//                else{
+//                    customer.setCustomerId(customerId);
+//                    account.setCustomerId(customer.getCustomerId());
+//                    int accountNo = insertAccount(account);
+//                    if(accountNo==-1){
+//                        deleteCustomer(customer.getCustomerId());
+//                        failureList.add(tempList);
+//                    }
+//                    else {
+//                        account.setAccountNo(accountNo);
+//                        successList.add(tempList);
+//                    }
+//                }
+//            }
+//        }
+//        catch (Exception e){
+//            System.out.println(e.getMessage());
+//        }
+//        return tempMap;
+//    }
+//    @Override
+//    public int insertUser(Customer customer) throws Exception{
+//        if(customer == null){
+//            return -1;
+//        }
+//        try{
+//            String sql = "insert into "+this.table1+"(name,mobileNo,status) values(?,?,?)";
+//            ps1 = getStatement(sql,ps1);
+//            ps1.setString(1,customer.getName());
+////            if(customer.getName().equals("vishnu")){
+////                throw new Exception();
+////            }
+//            ps1.setLong(2,customer.getMobileNo());
+//            ps1.setInt(3,1);
+//            ps1.executeUpdate();
+//            try(ResultSet rs = ps1.getGeneratedKeys()){
+//                if(rs.next()){
+//                    return rs.getInt(1);
+//                }
+//            }
+//        }
+//        catch (Exception e){
+//            System.out.println(e.getMessage());
+//        }
+//        return -1;
+//    }
+//    @Override
+//    public int insertAccount(Account account){
+//        if(account==null){
+//            return -1;
+//        }
+//        try{
+//            String sql = "insert into "+this.table2+"(balance,customerId,branch,status) values(?,?,?,?)";
+//            ps2 = getStatement(sql,ps2);
+//            ps2.setDouble(1,account.getBalance());
+//            ps2.setInt(2,account.getCustomerId());
+//            ps2.setString(3,account.getBranch());
+////            if(account.getBranch().equals("nagai")){
+////                throw new Exception();
+////            }
+//            ps2.setInt(4,1);
+//            ps2.executeUpdate();
+//            try(ResultSet rs = ps2.getGeneratedKeys()){
+//                if(rs.next()){
+//                    return rs.getInt(1);
+//                }
+//            }
+//        }
+//        catch (Exception e){
+//            System.out.println(e.getMessage());
+//        }
+//        return -1;
+//    }
+//    //When the customer details are added but the account details are failed to add, then deletion can be performed using deleteCustomer.
+//    @Override
+//    public void deleteCustomer(int customerId) throws Exception{
+//        String sql = "Delete from "+this.table1+" where customerId ="+customerId;
+//        try(Statement statement = getConnection().createStatement()){
+//            statement.executeUpdate(sql);
+//        }
+//    }
+//    //getAccountsList is for getting all the accounts in the database.
+//    @Override
+//    public List<Account> getAccountsList()throws Exception{
+//        List<Account> accountList = new ArrayList<>();
+//        String sql = "select customerId,accountNo,balance,branch from "+table2+" where status = 1";
+//        try(Statement statement = getConnection().createStatement();ResultSet rs = statement.executeQuery(sql)){
+//            while(rs.next()){
+//                Account account = new Account();
+//                account.setCustomerId(rs.getInt("customerId"));
+//                account.setAccountNo(rs.getLong("accountNo"));
+//                account.setBalance(rs.getDouble("balance"));
+//                account.setBranch(rs.getString("branch"));
+//                accountList.add(account);
+//            }
+//        }
+//        return accountList;
+//    }
+//
+//    @Override
+//    public boolean removeAccount(long accountNo) {
+//        String sql = "Update "+this.table2+" set status = 0 where accountNo = "+accountNo;
+//        return updateDb(sql);
+//    }
+//    @Override
+//    public boolean updateDb(String sql) {
+//        try (Statement statement = getConnection().createStatement()) {
+//            statement.executeUpdate(sql);
+//        } catch (Exception e) {
+//            System.out.println(e.getMessage());
+//            return false;
+//        }
+//        return true;
+//    }
+//
+//    @Override
+//    public boolean removeCustomer(int customerId) {
+//        String sql = "Update "+this.table1+" set status = 0 where customerId = "+customerId;
+//        return updateDb(sql);
+//    }
+//    @Override
+//    public boolean updateAmount(double amount, long accountNo) {
+//        String sql = "Update "+this.table2+" set balance = "+amount+" where accountNo = "+accountNo+" and status = 1";
+//        return updateDb(sql);
+//    }
+//    @Override
+//    public void rollbackAccount(long accountNo){
+//        String sql = "Update "+this.table2+" set status = 1 where accountNo = "+accountNo;
+//        updateDb(sql);
+//    }
+//}
 //package com.bankapplication.dbconnection;
 //
 //        import java.sql.Connection;

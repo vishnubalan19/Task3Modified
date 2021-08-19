@@ -10,6 +10,7 @@ import java.util.Properties;
 import com.bankapplication.customer.Customer;
 import com.bankapplication.account.Account;
 import com.bankapplication.dbconnection.PersistentLayer;
+import com.bankapplication.exception.CustomException;
 import com.bankapplication.mapdata.MapData;
 
 public class LogicLayer {
@@ -25,9 +26,13 @@ public class LogicLayer {
 //        persistentLayer = (PersistentLayer) tempClass.newInstance();
     }
     //creation of tables
-    public boolean createTables(String table1, String table2) throws Exception {
+    public void createTables(String table1, String table2) throws Exception {
         initPersistentLayer();
-        return persistentLayer.createTables(table1,table2);
+        try{
+            persistentLayer.createTables(table1,table2);
+        }catch (Exception exception){
+            throw new CustomException("Enter appropriate table names");
+        }
     }
     //getCustomerList is for retrieving the customerList based on the value. value can either be 0 or 1. 0 for failure
     // and 1 for success
@@ -63,10 +68,10 @@ public class LogicLayer {
         List<Account> successAccountList = getAccountList(tempMap,1);
         MapData.mapData.setCustomers(successCustomerList);
         MapData.mapData.setCustomerBranches(successAccountList);
-        if(getDbHashMap()!=null){
+
             System.out.println("from insertusers");
             MapData.mapData.setDbHashValues(successAccountList);
-        }
+
         return tempMap;
     }
     public Map<Integer,Customer> getCustomerMap(){
@@ -77,10 +82,10 @@ public class LogicLayer {
         if(accountNo==-1)
             return accountNo;
         account.setAccountNo(accountNo);
-        if(getDbHashMap()!=null){
+
             System.out.println("from insert accounts");
             MapData.mapData.setDbHashMap(account);
-        }
+
         return accountNo;
     }
     //Retrieving the values from the database.
@@ -90,11 +95,67 @@ public class LogicLayer {
         System.out.println("from retrieve users "+accountList.size());
         MapData.mapData.setDbHashValues(accountList);
     }
+    public void depositAmount(int id,double amount, long accountNo,double balance) throws CustomException {
+        try{
+            persistentLayer.updateAmount(amount+balance,accountNo);
+        }
+        catch (Exception exception){
+            throw new CustomException("Deposition failed.");
+        }
+        //if(getDbHashMap()!=null){
+            System.out.println("from deposit");
+            MapData.mapData.updateAccount(id,accountNo,amount+balance);
+        //}
+    }
+    public void withdrawAmount(int id,double amount, long accountNo,double balance) throws CustomException{
+        try {
+            persistentLayer.updateAmount(balance - amount, accountNo);
+        }
+        catch (Exception exception){
+            throw new CustomException("Amount Withdraw failed");
+        }
+        //if(getDbHashMap()!=null){
+            System.out.println("from withdraw");
+            MapData.mapData.updateAccount(id,accountNo,balance-amount);
+        //}
+    }
+    public void removeAccount(int customerId, long accountNo) throws CustomException{
+        try {
+            persistentLayer.removeAccount(accountNo);
+        }
+        catch (Exception exception){
+            System.out.println("rm a");
+            throw new CustomException("Account deletion failed");
+        }
+        String branch = getDbHashMap().get(customerId).get(accountNo).getBranch();
+        if(getDbHashMap().get(customerId).size()==1){
+            try{
+                removeCustomer(customerId);
+            }catch (Exception exception){
+                System.out.println("rm c");
+                persistentLayer.rollbackAccount(accountNo);
+                throw new CustomException("Account deletion failed");
+            }
+            MapData.mapData.removeCustomer(customerId);
+        }
+        MapData.mapData.removeAccount(customerId,accountNo,branch);
+    }
+    public void removeCustomer(int customerId) throws CustomException{
+        try{
+            persistentLayer.removeCustomer(customerId);
+        }
+        catch (Exception exception){
+            throw new CustomException(exception.getMessage());
+        }
+    }
     public Map<Integer,Map<Long,Account>> getDbHashMap(){
         return MapData.mapData.getDbHashMap();
     }
     public Map<Integer, List<String>> getCustomerBranchMap(){
         return MapData.mapData.getCustomerBranchMap();
+    }
+    public Map<Integer,Customer> getDeactivatedCustomerMap(){
+        return MapData.mapData.getDeactivatedCustomerMap();
     }
     //Closing the necessary statement from the database
     public void cleanUp() throws Exception{

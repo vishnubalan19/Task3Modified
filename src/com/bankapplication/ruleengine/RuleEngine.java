@@ -3,7 +3,7 @@ package com.bankapplication.ruleengine;
 
 public class RuleEngine {
     //validateFloatNumber is for validating the balance.
-    public static boolean validateFloatNumber(String number){
+    public static boolean validateDoubleNumber(String number){
         try{
             Double.parseDouble(number);
         }catch (Exception e){

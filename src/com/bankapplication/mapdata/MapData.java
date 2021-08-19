@@ -13,6 +13,7 @@ public enum MapData{
     private final Map<Integer, Customer> customerMap = new HashMap<>();
     private Map <Integer,Map<Long, Account>> dbHashMap = null;
     private final Map<Integer,List<String>> customerBranchMap = new HashMap<>();
+    private Map<Integer,Customer> deactivatedCustomerMap = new HashMap<>();
     //Storing the customer data in Map.
     public void setCustomers(List <Customer> customerList){
         for(Customer customer : customerList){
@@ -65,8 +66,29 @@ public enum MapData{
         userMap.put(account.getAccountNo(),account);
         dbHashMap.put(account.getCustomerId(),userMap);
     }
+    public void updateAccount(int customerId,long accountNo, double balance){
+        dbHashMap.get(customerId).get(accountNo).setBalance(balance);
+    }
     public Map<Integer,Map<Long,Account>> getDbHashMap(){
         return dbHashMap;
+    }
+    public void removeAccount(int customerId,long accountNo,String branch){
+        getDbHashMap().get(customerId).remove(accountNo);
+        getCustomerBranchMap().get(customerId).remove(branch);
+    }
+    public void removeCustomer(int customerId){
+        getDbHashMap().remove(customerId);
+        setDeactivatedCustomerMap(customerId,getCustomerMap().get(customerId));
+        getCustomerMap().remove(customerId);
+        getCustomerBranchMap().remove(customerId);
+    }
+
+    public void setDeactivatedCustomerMap(int customerId, Customer customer) {
+        this.deactivatedCustomerMap.put(customerId,customer);
+    }
+
+    public Map<Integer,Customer> getDeactivatedCustomerMap() {
+        return deactivatedCustomerMap;
     }
 }
 
