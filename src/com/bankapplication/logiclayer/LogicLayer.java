@@ -136,7 +136,8 @@ public class LogicLayer {
                 persistentLayer.rollbackAccount(accountNo);
                 throw new CustomException("Account deletion failed");
             }
-            MapData.mapData.removeCustomer(customerId);
+            MapData.mapData.removeCustomer(customerId,accountNo);
+            return;
         }
         MapData.mapData.removeAccount(customerId,accountNo,branch);
     }
@@ -148,6 +149,15 @@ public class LogicLayer {
             throw new CustomException(exception.getMessage());
         }
     }
+    public void insertUsers(Account account,Customer customer) throws CustomException{
+        try{
+            persistentLayer.activateCustomer(account.getAccountNo(),customer.getCustomerId());
+        }
+        catch (Exception exception){
+            throw new CustomException(exception.getMessage());
+        }
+        MapData.mapData.activateCustomer(account,customer);
+    }
     public Map<Integer,Map<Long,Account>> getDbHashMap(){
         return MapData.mapData.getDbHashMap();
     }
@@ -157,6 +167,7 @@ public class LogicLayer {
     public Map<Integer,Customer> getDeactivatedCustomerMap(){
         return MapData.mapData.getDeactivatedCustomerMap();
     }
+    public Map<Integer, Map<Long,Account>> getDeactivatedDbHashMap(){ return  MapData.mapData.getDeactivatedDbHashMap();}
     //Closing the necessary statement from the database
     public void cleanUp() throws Exception{
         persistentLayer.closeStatement();

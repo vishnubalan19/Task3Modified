@@ -118,7 +118,7 @@ public class DbConnection implements PersistentLayer{
 		return tempMap;
     }
     @Override
-	public int insertUser(Customer customer) throws Exception{
+	public int insertUser(Customer customer) {
 		if(customer == null){
 			return -1;
 		}
@@ -224,6 +224,13 @@ public class DbConnection implements PersistentLayer{
     public void rollbackAccount(long accountNo) throws CustomException{
         String sql = "Update "+this.table2+" set status = 1 where accountNo = "+accountNo;
         updateDb(sql);
+    }
+
+    @Override
+    public void activateCustomer(long accountNo, int customerId) throws CustomException{
+        String sql = "Update "+this.table1+" set status = 1 where customerId = "+customerId;
+        updateDb(sql);
+        rollbackAccount(accountNo);
     }
 }
 

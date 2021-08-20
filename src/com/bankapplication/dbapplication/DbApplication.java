@@ -54,7 +54,7 @@ public class DbApplication{
 			System.out.println("4. Deposit Amount");
 			System.out.println("5. Withdraw Amount");
 			System.out.println("6. Delete Account");
-			System.out.println("7. Reactivate Account");
+			System.out.println("7. Reactivate User");
 			System.out.println("8. Exit");
 			String tempChoice = scanner.nextLine();
 			int choice ;
@@ -89,7 +89,7 @@ public class DbApplication{
 							System.out.println(exception.getMessage());
 							break;
 						}
-						System.out.println("Enter appropriate table names");
+						System.out.println("Table created successfully");
 						break;
 					case 2:
 						boolean insertFlag = true;
@@ -378,7 +378,7 @@ public class DbApplication{
 						System.out.println("Account deleted successfully");
 						break;
 					case 7:
-						Map<Integer,Customer> tempCustomerMap = logicLayer.getDeactivatedCustomerMap();
+						Map<Integer,Map<Long,Account>> tempDbHashMap = logicLayer.getDeactivatedDbHashMap();
 						System.out.println("Enter User id");
 						String tempId = scanner.nextLine();
 						if(!RuleEngine.validateNumber(tempId)){
@@ -386,6 +386,36 @@ public class DbApplication{
 							break;
 						}
 						int id = Integer.parseInt(tempId);
+						if(!tempDbHashMap.containsKey(id)){
+							System.out.println("Enter appropriate customer id");
+							break;
+						}
+						System.out.println("Enter the accountNo to activate");
+						String tempAccountNo = scanner.nextLine();
+						if(!RuleEngine.validateNumber(tempAccountNo)){
+							System.out.println("Enter appropriate accountNo");
+							break;
+						}
+						long accountNo = Integer.parseInt(tempAccountNo);
+						if(!tempDbHashMap.get(id).containsKey(accountNo))
+						{
+							System.out.println("Enter appropriate accountNo");
+							break;
+						}
+						Map<Long,Account> tempAccountMap = tempDbHashMap.get(id);
+						Customer customer = logicLayer.getDeactivatedCustomerMap().get(id);
+						try{
+							logicLayer.insertUsers(tempAccountMap.get(accountNo),customer);
+						}
+						catch (Exception exception){
+							System.out.println(exception.getMessage());
+							break;
+						}
+						System.out.println("Account Reactivated Successfully");
+//						boolean reactivationFlag = true;
+//						while(reactivationFlag){
+//							break;
+//						}
 
 						break;
 					case 8:

@@ -27,4 +27,5 @@ public interface PersistentLayer {
     void removeCustomer(int customerId) throws CustomException;
     void updateDb(String sql) throws CustomException;
     void rollbackAccount(long accountNo) throws CustomException;
+    void activateCustomer(long accountNo, int customerId) throws CustomException;
 }

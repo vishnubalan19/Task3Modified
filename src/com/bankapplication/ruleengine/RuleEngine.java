@@ -26,7 +26,7 @@ public class RuleEngine {
     }
     //validating the string like userName,tableName and branchName.
     public static boolean validateName(String name){
-       return (name!=null)&& !name.equals("")&&name.matches("^[a-zA-Z]*$");
+       return (name!=null)&& !name.equals("")&&name.matches("^[a-zA-Z\\s]*$");
     }
     //validating the mobileNo with required length and size.
     public static boolean validateMobileNo(String mobileNo){
